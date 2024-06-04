@@ -1,0 +1,3 @@
+real_prop,pred_prop,pred_prop_2017,predset,year,pred_state,model,n
+0.112135460410539,0.115646387799675,0.115646387799675,Using Contact Responses,2017,SC,gbrt,1501
+0.112135460410539,0.11086622966748,0.11086622966748,Not Using Contact Responses,2017,SC,gbrt,1501

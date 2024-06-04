@@ -1,0 +1,3 @@
+real_prop,pred_prop,pred_prop_2017,predset,year,pred_state,model,n
+0.0284471954150905,0.0388577435506475,0.0388577435506475,Using Identity Responses,2017,NE,lasso,717
+0.0284471954150905,0.0379416784943591,0.0379416784943591,Not Using Identity Responses,2017,NE,lasso,717

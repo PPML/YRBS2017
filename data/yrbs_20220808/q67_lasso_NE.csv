@@ -1,0 +1,3 @@
+real_prop,pred_prop,pred_prop_2017,predset,year,pred_state,model,n
+0.0859725649430007,0.0903730292152304,0.0903730292152304,Using Contact Responses,2017,NE,lasso,1427
+0.0859725649430007,0.0935683486648437,0.0935683486648437,Not Using Contact Responses,2017,NE,lasso,1427

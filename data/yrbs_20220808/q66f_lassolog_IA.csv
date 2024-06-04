@@ -1,0 +1,3 @@
+real_prop,pred_prop,pred_prop_2017,predset,year,pred_state,model,n
+0.0843048203847791,0.10246606620401,0.10246606620401,Using Identity Responses,2017,IA,lassolog,820
+0.0843048203847791,0.0956033752783244,0.0956033752783244,Not Using Identity Responses,2017,IA,lassolog,820

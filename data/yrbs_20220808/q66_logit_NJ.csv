@@ -1,0 +1,2 @@
+real_prop,pred_prop,pred_prop_2017,predset,year,pred_state,model,n
+0.0743185620066846,0.0765239041934958,0.0774142487045157,Not Using Identity Responses,2013,NJ,logit,1701

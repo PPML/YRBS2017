@@ -1,0 +1,2 @@
+real_prop,pred_prop,pred_prop_2017,predset,year,pred_state,model,n
+0.102592860675189,0.141013105269005,0.141013105269005,Not Using Contact Responses,2017,CO,logit,1493

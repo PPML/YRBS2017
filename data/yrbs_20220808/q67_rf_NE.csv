@@ -1,0 +1,3 @@
+real_prop,pred_prop,pred_prop_2017,predset,year,pred_state,model,n
+0.0859725649430007,0.0925447349483938,0.0925447349483938,Using Contact Responses,2017,NE,rf,1427
+0.0859725649430007,0.0892138182988312,0.0892138182988312,Not Using Contact Responses,2017,NE,rf,1427

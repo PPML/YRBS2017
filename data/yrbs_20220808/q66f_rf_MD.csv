@@ -1,0 +1,3 @@
+real_prop,pred_prop,pred_prop_2017,predset,year,pred_state,model,n
+0.109804747857489,0.0951814930191026,0.0945705299381638,Using Identity Responses,2015,MD,rf,28008
+0.109804747857489,0.0716276475494015,0.071843215641946,Not Using Identity Responses,2015,MD,rf,28008

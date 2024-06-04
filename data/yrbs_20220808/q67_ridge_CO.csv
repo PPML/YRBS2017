@@ -1,0 +1,2 @@
+real_prop,pred_prop,pred_prop_2017,predset,year,pred_state,model,n
+0.102592860675189,0.105886938658145,0.105886938658145,Not Using Contact Responses,2017,CO,ridge,1493

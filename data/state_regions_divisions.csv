@@ -1,0 +1,52 @@
+﻿sitecode,census_region,census_division
+AK,West,Pacific
+WA,West,Pacific
+OR,West,Pacific
+CA,West,Pacific
+HI,West,Pacific
+MT,West,Mountain
+ID,West,Mountain
+WY,West,Mountain
+NV,West,Mountain
+UT,West,Mountain
+CO,West,Mountain
+AZ,West,Mountain
+NM,West,Mountain
+ND,Midwest,West North Central
+MN,Midwest,West North Central
+WI,Midwest,East North Central
+MI,Midwest,East North Central
+SD,Midwest,West North Central
+NE,Midwest,West North Central
+IA,Midwest,West North Central
+IL,Midwest,East North Central
+IN,Midwest,East North Central
+OH,Midwest,East North Central
+KS,Midwest,West North Central
+MO,Midwest,West North Central
+NY,Northeast,Middle Atlantic
+PA,Northeast,Middle Atlantic
+NJ,Northeast,Middle Atlantic
+VT,Northeast,New England
+NH,Northeast,New England
+ME,Northeast,New England
+MA,Northeast,New England
+CT,Northeast,New England
+RI,Northeast,New England
+OK,South,West South Central
+AR,South,West South Central
+TX,South,West South Central
+LA,South,West South Central
+KY,South,East South Central
+TN,South,East South Central
+MS,South,East South Central
+AL,South,East South Central
+WV,South,South Atlantic
+MD,South,South Atlantic
+DE,South,South Atlantic
+DC,South,South Atlantic
+VA,South,South Atlantic
+NC,South,South Atlantic
+GA,South,South Atlantic
+SC,South,South Atlantic
+FL,South,South Atlantic

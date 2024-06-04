@@ -1,0 +1,3 @@
+real_prop,pred_prop,pred_prop_2017,predset,year,pred_state,model,n
+0.0859725649430007,0.0766184081215607,0.0766184081215607,Using Contact Responses,2017,NE,ridgelog,1427
+0.0859725649430007,0.0775745513392921,0.0775745513392921,Not Using Contact Responses,2017,NE,ridgelog,1427

@@ -1,0 +1,4 @@
+real_prop,pred_prop,pred_prop_2017,predset,year,pred_state,model,n
+0.0794222775525731,0.087342082119364,0.0955347880928999,Not Using Contact Responses,2013,AZ,lassolog,1623
+0.0854261608337977,0.0982181388862326,0.104613380121269,Not Using Contact Responses,2015,AZ,lassolog,2582
+0.113423415308664,0.0752371907913597,0.0752371907913597,Not Using Contact Responses,2017,AZ,lassolog,2139

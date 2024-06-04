@@ -1,0 +1,9 @@
+pred_model,Same year with other focal Q,Same year without other focal Q,Previous year without other focal Q
+ols,ICC: 0.365 (p-val: 0.128); Coverage: 0.92,ICC: 0.325 (p-val: 0.163); Coverage: 0.92,ICC: 0.163 (p-val: 0.348); Coverage: 0.95
+logit,ICC: 0.56 (p-val: 0.021); Coverage: 0.92,ICC: 0.422 (p-val: 0.086); Coverage: 0.96,ICC: 0.265 (p-val: 0.25); Coverage: 0.95
+lasso,ICC: 0.563 (p-val: 0.02); Coverage: 0.96,ICC: 0.417 (p-val: 0.089); Coverage: 0.92,ICC: 0.469 (p-val: 0.084); Coverage: 0.95
+lassolog,ICC: 0.589 (p-val: 0.014); Coverage: 0.96,ICC: 0.275 (p-val: 0.21); Coverage: 0.92,ICC: 0.424 (p-val: 0.115); Coverage: 0.95
+ridge,ICC: 0.528 (p-val: 0.031); Coverage: 0.96,ICC: 0.438 (p-val: 0.075); Coverage: 0.96,ICC: 0.383 (p-val: 0.146); Coverage: 0.9
+ridgelog,ICC: 0.62 (p-val: 0.009); Coverage: 0.92,ICC: 0.488 (p-val: 0.048); Coverage: 0.92,ICC: 0.56 (p-val: 0.038); Coverage: 0.95
+rf,ICC: 0.673 (p-val: 0.003); Coverage: 0.92,ICC: 0.541 (p-val: 0.027); Coverage: 0.92,ICC: 0.368 (p-val: 0.158); Coverage: 0.9
+gbrt,ICC: 0.661 (p-val: 0.004); Coverage: 1,ICC: 0.587 (p-val: 0.014); Coverage: 0.96,ICC: 0.596 (p-val: 0.025); Coverage: 0.95

@@ -1,0 +1,13 @@
+q,pred_method,pred_model,pred_predset,oob_mean_bias,oob_sd,t_dist_df
+q67,Same year with other focal Q,rf,Using Contact Responses,-0.00592355146184037,0.00933414220813569,25
+q67,Same year without other focal Q,rf,Not Using Contact Responses,0.00283961490875976,0.0125505028388146,29
+q67,Previous year without other focal Q,rf,Not Using Contact Responses,0.0110605298369045,0.0108895365116598,22
+q66,Same year with other focal Q,rf,Using Identity Responses,-0.00757192992782311,0.00767821590142369,25
+q66,Same year without other focal Q,rf,Not Using Identity Responses,0.00407418814954644,0.0104826792461291,25
+q66,Previous year without other focal Q,rf,Not Using Identity Responses,0.00894892898544327,0.00907667501283027,19
+q66_male,Same year with other focal Q,rf,Using Identity Responses,-0.00737730568390274,0.00947984566414648,25
+q66_male,Same year without other focal Q,rf,Not Using Identity Responses,0.00267267886568824,0.0103784517691427,25
+q66_male,Previous year without other focal Q,rf,Not Using Identity Responses,0.00540408189050975,0.00982282964228208,19
+q66_female,Same year with other focal Q,rf,Using Identity Responses,-0.00813687732984797,0.0128344965676898,25
+q66_female,Same year without other focal Q,rf,Not Using Identity Responses,0.00723668556229051,0.0169283182599457,25
+q66_female,Previous year without other focal Q,rf,Not Using Identity Responses,0.0133772776833102,0.0157973156914237,19

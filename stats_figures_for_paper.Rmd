@@ -1,0 +1,652 @@
+---
+title: "Summary stats and maps for paper"
+output: md_document
+---
+
+
+
+```{r, results='hide', warning=FALSE, message=FALSE}
+library(data.table)
+library(knitr)
+public_w_states = fread('~/YRBS_predictions/data/combined_pred_data_all.csv')
+```
+
+
+Data availability by state and year
+
+```{r}
+# non null Qs
+q_cols = grep('^q', colnames(public_w_states), value = T)
+q_cols = c(q_cols, 'age','grade','race4','race7','sex','stheight','stweight')
+public_w_states[, non_null := Reduce(`+`, lapply(.SD,function(x) !is.na(x))), .SDcols = q_cols]
+public_w_states[, summary(non_null)]
+```
+
+```{r}
+state_year_summary = public_w_states[year>=2013, .(
+  n_obs = .N,
+  n_qs = max(non_null),
+  lgb_id = max(ifelse(!is.na(q67),1,0)),
+  samesex_contact = max(ifelse(!is.na(q66),1,0))
+  ), by = .(sitecode,year)]
+kable(state_year_summary)
+```
+
+```{r}
+state_year_summary[is.na(n_obs), yrbs_availability_string := "-"]
+state_year_summary[!is.na(n_obs), yrbs_availability_string := paste0("N:", format(n_obs, big.mark=",", trim=T),". Q:", n_qs)]
+
+state_yrbs_data = dcast(state_year_summary, sitecode ~ year, value.var = "yrbs_availability_string",
+      fill = "-")
+state_yrbs_data = state_yrbs_data[,.(sitecode,`2017`,`2015`,`2013`)]
+setnames(state_yrbs_data, c('sitecode', paste0("YRBS_",                                                colnames(state_yrbs_data)[2:ncol(state_yrbs_data)])))
+kable(state_yrbs_data)
+```
+```{r}
+state_year_summary[,lgb_id_t := ifelse(lgb_id==1,"Y","-")]
+state_lgb_data = dcast(state_year_summary, sitecode ~ year, value.var = "lgb_id_t",
+      fill = "-")
+state_lgb_data = state_lgb_data[,.(sitecode,`2017`,`2015`,`2013`)]
+setnames(state_lgb_data, c('sitecode', paste0("lgb_", colnames(state_lgb_data)[2:ncol(state_lgb_data)])))
+state_lgb_data
+
+state_year_summary[,samesex_contact_t := ifelse(samesex_contact==1,"Y","-")]
+state_samesex_data = dcast(state_year_summary, sitecode ~ year, value.var = "samesex_contact_t",
+      fill = "-")
+state_samesex_data = state_samesex_data[,.(sitecode,`2017`,`2015`,`2013`)]
+setnames(state_samesex_data, c('sitecode', paste0("samesex_", colnames(state_samesex_data)[2:ncol(state_samesex_data)])))
+kable(state_samesex_data)
+```
+
+```{r}
+# Combine all state level summary stats
+site_regions_divisions = fread("~/YRBS_predictions/data/state_regions_divisions.csv")
+
+all_states_data = Reduce(function(a,b) merge(a,b,by='sitecode',all.x=T),
+       list(state_yrbs_data, state_lgb_data, state_samesex_data),
+       init = site_regions_divisions[sitecode!="DC",.(sitecode)])
+
+all_states_data[is.na(all_states_data)] = "-"
+
+fwrite(all_states_data, "~/YRBS_predictions/data/paper_tables/a1.csv")
+kable(all_states_data)
+```
+
+
+
+# Table 1 Summary Stats
+
+
+Data size
+```{r}
+public_w_states[, have_q67 := max(ifelse(!is.na(q67), 1, 0)), by = .(sitecode, year)]
+public_w_states[, have_q66 := max(ifelse(!is.na(q66) & !is.na(sex), 1, 0)), by = .(sitecode, year)]
+public_w_states[, latest_year := max(year), by = 'sitecode']
+public_w_states[, is_latest_year := (year==latest_year)]
+
+# Training data, LGB
+print(paste("N:",public_w_states[year>= 2013 & have_q67==1, .N]))
+print(paste("N states:",public_w_states[year>= 2013 & have_q67==1, uniqueN(sitecode)]))
+print(paste("N states 2017:", public_w_states[year== 2017 & have_q67==1, uniqueN(sitecode)]))
+print(paste("N states 2015:", public_w_states[year== 2015 & have_q67==1, uniqueN(sitecode)]))
+print(paste("N states 2013:", public_w_states[year== 2013 & have_q67==1, uniqueN(sitecode)]))
+print(paste("N states w other focal Q in 2017:",public_w_states[year== 2017 & have_q67==1 & have_q66==1, uniqueN(sitecode)]))
+
+public_w_states[have_q67==1, Y_q67 := 0]
+public_w_states[q67 == 2, Y_q67 := 1]
+public_w_states[q67 == 3, Y_q67 := 1]
+
+per_state_metrics = public_w_states[year>= 2013 & have_q67==1,.(
+  n_years = uniqueN(year),
+  qs_with_answers = max(non_null),
+  true_prev = mean(Y_q67)
+  ), by = 'sitecode']
+
+kable(melt(per_state_metrics[, .(
+  mean_n_years = mean(n_years),
+  min_years = min(n_years),
+  max_years = max(n_years),
+  median_qs = quantile(qs_with_answers, 0.5),
+  min_qs = min(qs_with_answers),
+  max_qs = max(qs_with_answers),
+  mean_prev = round(mean(true_prev*1E5)),
+  sd_prev = round(sd(true_prev*1E5))
+  )]))
+```
+
+```{r}
+# Prediction data, LGB
+print(paste("N:",public_w_states[year>= 2013 & is_latest_year & (have_q67==0 | year<2017), .N]))
+print(paste("N states:",public_w_states[year>= 2013 & is_latest_year & (have_q67==0 | year<2017), uniqueN(sitecode)]))
+print(paste("N states 2017:", public_w_states[year== 2017 & is_latest_year & (have_q67==0 | year<2017), uniqueN(sitecode)]))
+print(paste("N states 2015:", public_w_states[year== 2015 & is_latest_year & (have_q67==0 | year<2017), uniqueN(sitecode)]))
+print(paste("N states 2013:", public_w_states[year== 2013 & is_latest_year & (have_q67==0 | year<2017), uniqueN(sitecode)]))
+print(paste("N states w other focal Q in 2017:",public_w_states[year== 2017 & (have_q67==0 | year<2017) & have_q66==1, uniqueN(sitecode)]))
+
+per_state_metrics = public_w_states[year>= 2013 & is_latest_year & (have_q67==0 | year<2017),.(
+  n_years = uniqueN(year),
+  qs_with_answers = max(non_null),
+  true_prev = mean(Y_q67)
+  ), by = 'sitecode']
+
+kable(melt(per_state_metrics[, .(
+  mean_n_years = mean(n_years),
+  min_years = min(n_years),
+  max_years = max(n_years),
+  median_qs = quantile(qs_with_answers, 0.5),
+  min_qs = min(qs_with_answers),
+  max_qs = max(qs_with_answers),
+  mean_prev = round(mean(true_prev*1E5)),
+  sd_prev = round(sd(true_prev*1E5))
+  )]))
+```
+
+```{r}
+# Training data, Sex of Contacts
+print(paste("N:",public_w_states[year>= 2013 & have_q66==1, .N]))
+print(paste("N states:",public_w_states[year>= 2013 & have_q66==1, uniqueN(sitecode)]))
+print(paste("N states 2017:", public_w_states[year== 2017 & have_q66==1, uniqueN(sitecode)]))
+print(paste("N states 2015:", public_w_states[year== 2015 & have_q66==1, uniqueN(sitecode)]))
+print(paste("N states 2013:", public_w_states[year== 2013 & have_q66==1, uniqueN(sitecode)]))
+print(paste("N states w other focal Q in 2017:",public_w_states[year== 2017 & have_q67==1 & have_q66==1, uniqueN(sitecode)]))
+
+
+public_w_states[have_q66==1, Y_q66 := 0]
+public_w_states[q66 == 4, Y_q66 := 1]
+public_w_states[sex == 1 & q66 == 2, Y_q66 := 1]
+public_w_states[sex == 2 & q66 == 3, Y_q66 := 1]
+
+per_state_metrics = public_w_states[year>= 2013 & have_q66==1,.(
+  n_years = uniqueN(year),
+  qs_with_answers = max(non_null),
+  true_prev = mean(Y_q66)
+  ), by = 'sitecode']
+
+kable(melt(per_state_metrics[, .(
+  mean_n_years = mean(n_years),
+  min_years = min(n_years),
+  max_years = max(n_years),
+  median_qs = quantile(qs_with_answers, 0.5),
+  min_qs = min(qs_with_answers),
+  max_qs = max(qs_with_answers),
+  mean_prev = round(mean(true_prev*1E5)),
+  sd_prev = round(sd(true_prev*1E5))
+  )]))
+```
+
+```{r}
+# Prediction data, Sex of Contacts
+print(paste("N:",public_w_states[year>= 2013 & is_latest_year & (have_q66==0 | year<2017), .N]))
+print(paste("N states:",public_w_states[year>= 2013 & is_latest_year & (have_q66==0 | year<2017), uniqueN(sitecode)]))
+print(paste("N states 2017:", public_w_states[year== 2017 & is_latest_year & (have_q66==0 | year<2017), uniqueN(sitecode)]))
+print(paste("N states 2015:", public_w_states[year== 2015 & is_latest_year & (have_q66==0 | year<2017), uniqueN(sitecode)]))
+print(paste("N states 2013:", public_w_states[year== 2013 & is_latest_year & (have_q66==0 | year<2017), uniqueN(sitecode)]))
+print(paste("N states w other focal Q in 2017:",public_w_states[year== 2017 & (have_q66==0 | year<2017) & have_q67==1, uniqueN(sitecode)]))
+
+per_state_metrics = public_w_states[year>= 2013 &is_latest_year & (have_q66==0 | year<2017),.(
+  n_years = uniqueN(year),
+  qs_with_answers = max(non_null),
+  true_prev = mean(Y_q66)
+  ), by = 'sitecode']
+
+kable(melt(per_state_metrics[, .(
+  mean_n_years = mean(n_years),
+  min_years = min(n_years),
+  max_years = max(n_years),
+  median_qs = quantile(qs_with_answers, 0.5),
+  min_qs = min(qs_with_answers),
+  max_qs = max(qs_with_answers),
+  mean_prev = mean(true_prev),
+  sd_prev = sd(true_prev)
+  )]))
+```
+
+
+```{r}
+# Both training and prediction, LGB Identity
+
+training_states = public_w_states[(year>= 2013 & have_q67==1), unique(sitecode)]
+prediction_states = public_w_states[year>= 2013 & is_latest_year & (have_q67==0 | year<2017), unique(sitecode)]
+intersect(training_states, prediction_states)
+```
+
+
+```{r}
+# Both training and prediction, Sex of Contacts
+
+training_states = public_w_states[(year>= 2013 & have_q66==1), unique(sitecode)]
+prediction_states = public_w_states[year>= 2013 & is_latest_year & (have_q66==0 | year<2017), unique(sitecode)]
+intersect(training_states, prediction_states)
+```
+
+
+
+```{r}
+# Training data, Sex of Contacts (males)
+print(paste("N:",public_w_states[year>= 2013 & have_q66==1 & sex == 2, .N]))
+print(paste("N states:",public_w_states[year>= 2013 & have_q66==1 & sex == 2, uniqueN(sitecode)]))
+print(paste("N states 2017:", public_w_states[year== 2017 & have_q66==1 & sex == 2, uniqueN(sitecode)]))
+print(paste("N states 2015:", public_w_states[year== 2015 & have_q66==1 & sex == 2, uniqueN(sitecode)]))
+print(paste("N states 2013:", public_w_states[year== 2013 & have_q66==1 & sex == 2, uniqueN(sitecode)]))
+print(paste("N states w other focal Q in 2017:",public_w_states[year== 2017 & have_q67==1 & have_q66==1 & sex == 2, uniqueN(sitecode)]))
+
+
+public_w_states[have_q66==1, Y_q66 := 0]
+public_w_states[q66 == 4, Y_q66 := 1]
+public_w_states[sex == 1 & q66 == 2, Y_q66 := 1]
+public_w_states[sex == 2 & q66 == 3, Y_q66 := 1]
+
+per_state_metrics = public_w_states[year>= 2013 & have_q66==1 & sex == 2,.(
+  n_years = uniqueN(year),
+  qs_with_answers = max(non_null),
+  true_prev = mean(Y_q66)
+  ), by = 'sitecode']
+
+kable(melt(per_state_metrics[, .(
+  mean_n_years = mean(n_years),
+  min_years = min(n_years),
+  max_years = max(n_years),
+  median_qs = quantile(qs_with_answers, 0.5),
+  min_qs = min(qs_with_answers),
+  max_qs = max(qs_with_answers),
+  mean_prev = round(mean(true_prev*1E5)),
+  sd_prev = round(sd(true_prev*1E5))
+  )]))
+```
+
+
+```{r}
+# Prediction data, Sex of Contacts (males)
+print(paste("N:",public_w_states[year>= 2013 & is_latest_year & (have_q66==0 | year<2017) & sex == 2, .N]))
+print(paste("N states:",public_w_states[year>= 2013 & is_latest_year & (have_q66==0 | year<2017) & sex == 2, uniqueN(sitecode)]))
+print(paste("N states 2017:", public_w_states[year== 2017 & is_latest_year & (have_q66==0 | year<2017) & sex == 2, uniqueN(sitecode)]))
+print(paste("N states 2015:", public_w_states[year== 2015 & is_latest_year & (have_q66==0 | year<2017) & sex == 2, uniqueN(sitecode)]))
+print(paste("N states 2013:", public_w_states[year== 2013 & is_latest_year & (have_q66==0 | year<2017) & sex == 2, uniqueN(sitecode)]))
+print(paste("N states w other focal Q in 2017:",public_w_states[year== 2017 & (have_q66==0 | year<2017) & have_q67==1 & sex == 2, uniqueN(sitecode)]))
+
+per_state_metrics = public_w_states[year>= 2013 &is_latest_year & (have_q66==0 | year<2017) & sex == 2,.(
+  n_years = uniqueN(year),
+  qs_with_answers = max(non_null),
+  true_prev = mean(Y_q66)
+  ), by = 'sitecode']
+
+kable(melt(per_state_metrics[, .(
+  mean_n_years = mean(n_years),
+  min_years = min(n_years),
+  max_years = max(n_years),
+  median_qs = quantile(qs_with_answers, 0.5),
+  min_qs = min(qs_with_answers),
+  max_qs = max(qs_with_answers),
+  mean_prev = mean(true_prev),
+  sd_prev = sd(true_prev)
+  )]))
+```
+
+
+```{r}
+# Training data, Sex of Contacts (females)
+print(paste("N:",public_w_states[year>= 2013 & have_q66==1 & sex == 1, .N]))
+print(paste("N states:",public_w_states[year>= 2013 & have_q66==1 & sex == 1, uniqueN(sitecode)]))
+print(paste("N states 2017:", public_w_states[year== 2017 & have_q66==1 & sex == 1, uniqueN(sitecode)]))
+print(paste("N states 2015:", public_w_states[year== 2015 & have_q66==1 & sex == 1, uniqueN(sitecode)]))
+print(paste("N states 2013:", public_w_states[year== 2013 & have_q66==1 & sex == 1, uniqueN(sitecode)]))
+print(paste("N states w other focal Q in 2017:",public_w_states[year== 2017 & have_q67==1 & have_q66==1 & sex == 1, uniqueN(sitecode)]))
+
+
+public_w_states[have_q66==1, Y_q66 := 0]
+public_w_states[q66 == 4, Y_q66 := 1]
+public_w_states[sex == 1 & q66 == 2, Y_q66 := 1]
+public_w_states[sex == 2 & q66 == 3, Y_q66 := 1]
+
+per_state_metrics = public_w_states[year>= 2013 & have_q66==1 & sex == 1,.(
+  n_years = uniqueN(year),
+  qs_with_answers = max(non_null),
+  true_prev = mean(Y_q66)
+  ), by = 'sitecode']
+
+kable(melt(per_state_metrics[, .(
+  mean_n_years = mean(n_years),
+  min_years = min(n_years),
+  max_years = max(n_years),
+  median_qs = quantile(qs_with_answers, 0.5),
+  min_qs = min(qs_with_answers),
+  max_qs = max(qs_with_answers),
+  mean_prev = round(mean(true_prev*1E5)),
+  sd_prev = round(sd(true_prev*1E5))
+  )]))
+```
+
+
+```{r}
+# Prediction data, Sex of Contacts (females)
+print(paste("N:",public_w_states[year>= 2013 & is_latest_year & (have_q66==0 | year<2017) & sex == 1, .N]))
+print(paste("N states:",public_w_states[year>= 2013 & is_latest_year & (have_q66==0 | year<2017) & sex == 1, uniqueN(sitecode)]))
+print(paste("N states 2017:", public_w_states[year== 2017 & is_latest_year & (have_q66==0 | year<2017) & sex == 1, uniqueN(sitecode)]))
+print(paste("N states 2015:", public_w_states[year== 2015 & is_latest_year & (have_q66==0 | year<2017) & sex == 1, uniqueN(sitecode)]))
+print(paste("N states 2013:", public_w_states[year== 2013 & is_latest_year & (have_q66==0 | year<2017) & sex == 1, uniqueN(sitecode)]))
+print(paste("N states w other focal Q in 2017:",public_w_states[year== 2017 & (have_q66==0 | year<2017) & have_q67==1 & sex == 1, uniqueN(sitecode)]))
+
+per_state_metrics = public_w_states[year>= 2013 &is_latest_year & (have_q66==0 | year<2017) & sex == 1,.(
+  n_years = uniqueN(year),
+  qs_with_answers = max(non_null),
+  true_prev = mean(Y_q66)
+  ), by = 'sitecode']
+
+kable(melt(per_state_metrics[, .(
+  mean_n_years = mean(n_years),
+  min_years = min(n_years),
+  max_years = max(n_years),
+  median_qs = quantile(qs_with_answers, 0.5),
+  min_qs = min(qs_with_answers),
+  max_qs = max(qs_with_answers),
+  mean_prev = mean(true_prev),
+  sd_prev = sd(true_prev)
+  )]))
+```
+
+
+
+
+# Maps of states and data availability
+
+https://rud.is/b/2015/05/15/u-s-drought-monitoring-with-hexbin-state-maps-in-r/
+
+```{r, results='hide', warning=FALSE, message=FALSE}
+library(rgdal)
+library(rgeos)
+library(ggplot2)
+library(readr)
+library(tidyr)
+library(dplyr)
+library(grid)
+library(maptools)
+```
+
+```{r}
+state_years_w_data = public_w_states[year>=2013, .(
+  any_yrbs_data = 1,
+  any_q66_data = max(ifelse(!is.na(q66),1,0)),
+  any_q67_data = max(ifelse(!is.na(q67),1,0)),
+  last_yrbs_year = max(year)
+  ), by = .(sitecode)]
+
+state_years_w_data[, data_availability := "YRBS without both focal Qs"]
+state_years_w_data[last_yrbs_year == 2017, data_availability := "YRBS without both focal Qs"]
+state_years_w_data[any_q66_data==1, 
+                   data_availability := "YRBS without both focal Qs"]
+state_years_w_data[any_q67_data==1, 
+                   data_availability := "YRBS without both focal Qs"]
+state_years_w_data[any_q66_data*any_q67_data==1, 
+                   data_availability := "YRBS with both focal Qs"]
+
+# Custom values
+# state_years_w_data = rbind(
+#   state_years_w_data[,.(sitecode, data_availability)],
+#   data.table(sitecode = c("GA", "MA", "IN", "OH"), 
+#              data_availability = rep("Pending",4)))
+```
+
+
+```{r}
+us <- readOGR("~/YRBS_predictions/data/us_states_hexgrid.geojson")
+centers <- cbind.data.frame(data.frame(gCentroid(us, byid=TRUE), id=us@data$iso3166_2))
+us_map <- as.data.table(fortify(us, region="iso3166_2"))
+
+us_map_w_data_inds = merge(us_map, state_years_w_data, by.x='id', by.y='sitecode', all.x=TRUE)
+us_map_w_data_inds[is.na(data_availability), data_availability := "Unavailable"]
+```
+
+```{r, fig.width=4}
+ggplot() +
+  geom_map(data=us_map[id!="DC"], map=us_map, aes(x=long, y=lat, map_id=id), color="white", size=0.5) +
+  geom_map(data=us_map_w_data_inds[id!="DC"], map=us_map, aes(fill=data_availability, map_id=id)) +
+  geom_text(data=centers, aes(label=id, x=x, y=y), color="white", size=4) + coord_map() + theme_minimal() +
+  labs(x=NULL, y=NULL, title="YRBS Data Availability by State (2013-2017)") + 
+  theme(plot.title=element_text(face="bold", hjust=0, size=14)) + 
+  theme(panel.border=element_blank()) + 
+  theme(panel.grid=element_blank()) + 
+  theme(axis.ticks=element_blank()) +
+  theme(strip.background=element_blank()) + 
+  theme(axis.text=element_blank()) + 
+  scale_fill_manual(values=c("#F44336", "gray", "#43A047", "black", "#00ACC1", "#AB47BC")) +
+  labs(fill="Data Availability")
+  
+```
+
+State Prevalences by Q, year
+```{r, fig.height=6}
+same_sex_contact_by_state_year = public_w_states[
+  q66 %in% c(2,3,4),
+  .(prev = weighted.mean(
+    ifelse(q66 == 4 | (sex == 1 & q66 == 2) | (sex == 2 & q66 == 3), 1, 0),
+    weight, na.rm = T)), 
+  by = c('sitecode','year')]
+
+same_sex_contact_by_state_year
+
+# grid of state-years to plot
+state_years = as.data.table(expand.grid(id = us_map[id!="DC",unique(id)], year = public_w_states[year >= 2013,unique(year)]))
+state_years = merge(us_map, state_years, by='id', allow.cartesian=T)
+
+us_map_w_data_q66 = merge(state_years, same_sex_contact_by_state_year, by.x=c('year','id'), by.y=c('year','sitecode'),
+                          allow.cartesian=T, all.x=TRUE)
+
+us_map_w_data_q66[,prev_missing := is.na(prev)]
+center_q66 = merge(as.data.table(centers), unique(us_map_w_data_q66[,.(year,id,prev_missing)]),
+                   by=c('id'))
+
+ggplot() +
+  geom_map(data=us_map_w_data_q66[id!="DC"], map=us_map, aes(x=long, y=lat, map_id=id), color="white", size=0.5) +
+  geom_map(data=us_map_w_data_q66[id!="DC"], map=us_map, aes(fill=prev, color=!prev_missing, map_id=id)) +
+  geom_text(data=center_q66, aes(label=id, x=x, y=y, color=!prev_missing), size=4) + coord_map() + theme_bw() +
+  labs(x=NULL, y=NULL, title="Same Sex Contact (given any Contact)\nby State and Year") + 
+  theme(plot.title=element_text(face="bold", hjust=0, size=20)) + 
+  theme(panel.border=element_blank()) + 
+  theme(panel.grid=element_blank()) + 
+  theme(axis.ticks=element_blank()) +
+  theme(strip.background=element_blank()) + 
+  theme(axis.text=element_blank()) + 
+  facet_wrap(~year, ncol = 1) +
+  theme(strip.text=element_text(face="bold", hjust=0, size=18)) +
+  scale_fill_gradient(na.value="white") +
+  scale_colour_manual(values = c("white", "black"), breaks = c(TRUE, FALSE)) +
+  guides(color=FALSE) +
+  theme(legend.title = element_blank())
+
+```
+
+
+```{r, fig.height=6}
+minority_identity_by_state_year = public_w_states[
+  !is.na(q67),
+  .(prev = weighted.mean(
+    ifelse(q67 %in% c(2,3), 1, 0),
+    weight, na.rm = T)), 
+  by = c('sitecode','year')]
+
+us_map_w_data_q67 = merge(state_years, minority_identity_by_state_year, by.x=c('year','id'), by.y=c('year','sitecode'),
+                          allow.cartesian=T, all.x=TRUE)
+
+us_map_w_data_q67[,prev_missing := is.na(prev)]
+center_q67 = merge(as.data.table(centers), unique(us_map_w_data_q67[,.(year,id,prev_missing)]),
+                   by=c('id'))
+
+ggplot() +
+  geom_map(data=us_map_w_data_q67[id!="DC"], map=us_map, aes(x=long, y=lat, map_id=id), color="white", size=0.5) +
+  geom_map(data=us_map_w_data_q67[id!="DC"], map=us_map, aes(fill=prev, color=!prev_missing, map_id=id)) +
+  geom_text(data=center_q67, aes(label=id, x=x, y=y, color=!prev_missing), size=4) + coord_map() + theme_bw() +
+  labs(x=NULL, y=NULL, title="LGB Identity Prevalence\nby State and Year") + 
+  theme(plot.title=element_text(face="bold", hjust=0, size=20)) + 
+  theme(panel.border=element_blank()) + 
+  theme(panel.grid=element_blank()) + 
+  theme(axis.ticks=element_blank()) +
+  theme(strip.background=element_blank()) + 
+  theme(axis.text=element_blank()) + 
+  facet_wrap(~year, ncol = 1) +
+  theme(strip.text=element_text(face="bold", hjust=0, size=18)) +
+  scale_fill_gradient(na.value="white") +
+  scale_colour_manual(values = c("white", "black"), breaks = c(TRUE, FALSE)) +
+  guides(color=FALSE) +
+  theme(legend.title = element_blank())
+```
+
+Example LOOCV
+```{r}
+loocv_state_years_w_data = public_w_states[year==2017, .(
+  any_q67_data = max(ifelse(!is.na(q67),1,0))
+  ), by = .(sitecode)]
+
+loocv_state_years_w_data[, category := "Training Data"]
+loocv_state_years_w_data[sitecode == "VT", category := "Evaluation Data"]
+loocv_map_data = merge(us_map, loocv_state_years_w_data, by.x='id', by.y='sitecode', all.x=T)
+loocv_map_data[is.na(category), category := "Missing Data"]
+
+
+ggplot() +
+  geom_map(data=us_map[id!="DC"], map=us_map, aes(x=long, y=lat, map_id=id), color="white", size=0.5) +
+  geom_map(data=loocv_map_data[id!="DC"], map=us_map, aes(fill=category, map_id=id)) +
+  geom_text(data=centers, aes(label=id, x=x, y=y), color="white", size=4) + coord_map() + theme_minimal() +
+  labs(x=NULL, y=NULL, title="LOOCV Example:\nEvaluating VT Sexual Identity Prevalence Prediction") + 
+  theme(plot.title=element_text(face="bold", hjust=0, size=14)) + 
+  theme(panel.border=element_blank()) + 
+  theme(panel.grid=element_blank()) + 
+  theme(axis.ticks=element_blank()) +
+  theme(strip.background=element_blank()) + 
+  theme(axis.text=element_blank()) + 
+  scale_fill_manual(values=c("#F44336", "gray", "#43A047", "black", "#00ACC1", "#AB47BC")) +
+  labs(fill="Data Category")
+  
+```
+
+
+
+
+Map prevalences
+```{r}
+q66_preds = fread('~/YRBS_predictions/data/map_preds_q66.csv')
+
+q66_preds_map_data = merge(us_map, q66_preds[,.(State, map_value)], by.x='id', by.y='State', all.x=T, allow.cartesian=T)
+
+q66_preds_center_data = merge(as.data.table(centers)[id!="DC"], q66_preds[,.(State, obs_prev)], by.x='id', by.y='State', all.x=T)
+q66_preds_center_data[, real_or_pred := ifelse(obs_prev==1, "plain", "bold.italic")]
+q66_preds_center_data[is.na(obs_prev), real_or_pred := "plain"]
+
+q66_preds_center_data[,map_label:=id]
+q66_preds_center_data[obs_prev==0,map_label:=paste0("bold(underline(",id,"))")]
+
+p = ggplot() +
+  geom_map(data=us_map[id!="DC"], map=us_map, aes(x=long, y=lat, map_id=id), color="white", size=0.5) +
+  geom_map(data=q66_preds_map_data[id!="DC"], map=us_map, aes(fill=map_value, map_id=id)) +
+  geom_text(data=q66_preds_center_data, aes(label=map_label, x=x, y=y), size=4, parse = TRUE) + coord_map() + theme_minimal() +
+  labs(x=NULL, y=NULL, title=NULL) + #"Estimated Prevalences of Same-Sex Contact") + 
+  theme(plot.title=element_text(face="bold", hjust=0, size=14)) + 
+  theme(panel.border=element_blank()) + 
+  theme(panel.grid=element_blank()) + 
+  theme(axis.ticks=element_blank()) +
+  theme(strip.background=element_blank()) + 
+  theme(axis.text=element_blank()) +
+  labs(fill="") + 
+  scale_color_manual(na.value="white", values = c("red", "green")) +
+  scale_fill_stepsn(colours = c("#f7e39c", "#f0b460", "#df882a", "#c45f24", "#a23620"), oob = scales::squish, show.limits=T, n.breaks=5, na.value="lightgray")
+
+ggsave(file="~/YRBS_predictions/figures/q66_map.svg", plot=p, width=8, height=4)
+
+p
+```
+
+```{r}
+q67_preds = fread('~/YRBS_predictions/data/map_preds_q67.csv')
+
+q67_preds_map_data = merge(us_map, q67_preds[,.(State, map_value)], by.x='id', by.y='State', all.x=T, allow.cartesian=T)
+
+q67_preds_center_data = merge(as.data.table(centers)[id!="DC"], q67_preds[,.(State, obs_prev)], by.x='id', by.y='State', all.x=T)
+q67_preds_center_data[, real_or_pred := ifelse(obs_prev==1, "plain", "bold.italic")]
+q67_preds_center_data[is.na(obs_prev), real_or_pred := "plain"]
+q67_preds_center_data[,map_label:=id]
+q67_preds_center_data[obs_prev==0,map_label:=paste0("bold(underline(",id,"))")]
+
+p = ggplot() +
+  geom_map(data=us_map[id!="DC"], map=us_map, aes(x=long, y=lat, map_id=id), color="white", size=0.5) +
+  geom_map(data=q67_preds_map_data[id!="DC"], map=us_map, aes(fill=map_value, map_id=id)) +
+  geom_text(data=q67_preds_center_data, aes(label=map_label, x=x, y=y), size=4,parse=TRUE) + coord_map() + theme_minimal() +
+  labs(x=NULL, y=NULL, title=NULL) + #"Estimated Prevalences of LGB Identity") + 
+  theme(plot.title=element_text(face="bold", hjust=0, size=14)) + 
+  theme(panel.border=element_blank()) + 
+  theme(panel.grid=element_blank()) + 
+  theme(axis.ticks=element_blank()) +
+  theme(strip.background=element_blank()) + 
+  theme(axis.text=element_blank()) +
+  labs(fill="") + 
+  scale_color_manual(na.value="white", values = c("red", "green")) +
+  scale_fill_stepsn(colours = c("#f7e39c", "#f0b460", "#df882a", "#c45f24", "#a23620"),
+                    oob = scales::squish, show.limits=T, n.breaks=5, na.value="lightgray")
+
+ggsave(file="~/YRBS_predictions/figures/q67_map.svg", plot=p, width=8, height=4)
+
+p
+```
+
+
+```{r}
+q66_preds = fread('~/YRBS_predictions/data/map_preds_q66_male.csv')
+
+q66_preds_map_data = merge(us_map, q66_preds[,.(State, map_value)], by.x='id', by.y='State', all.x=T, allow.cartesian=T)
+
+q66_preds_center_data = merge(as.data.table(centers)[id!="DC"], q66_preds[,.(State, obs_prev)], by.x='id', by.y='State', all.x=T)
+q66_preds_center_data[, real_or_pred := ifelse(obs_prev==1, "plain", "bold.italic")]
+q66_preds_center_data[is.na(obs_prev), real_or_pred := "plain"]
+
+q66_preds_center_data[,map_label:=id]
+q66_preds_center_data[obs_prev==0,map_label:=paste0("bold(underline(",id,"))")]
+
+p = ggplot() +
+  geom_map(data=us_map[id!="DC"], map=us_map, aes(x=long, y=lat, map_id=id), color="white", size=0.5) +
+  geom_map(data=q66_preds_map_data[id!="DC"], map=us_map, aes(fill=map_value, map_id=id)) +
+  geom_text(data=q66_preds_center_data, aes(label=map_label, x=x, y=y), size=4, parse = TRUE) + coord_map() + theme_minimal() +
+  labs(x=NULL, y=NULL, title=NULL) + # "Estimated Prevalences of Same-Sex Contact among Male Respondents") + 
+  theme(plot.title=element_text(face="bold", hjust=0, size=14)) + 
+  theme(panel.border=element_blank()) + 
+  theme(panel.grid=element_blank()) + 
+  theme(axis.ticks=element_blank()) +
+  theme(strip.background=element_blank()) + 
+  theme(axis.text=element_blank()) +
+  labs(fill="") + 
+  scale_color_manual(na.value="white", values = c("red", "green")) +
+  scale_fill_stepsn(colours = c("#f7e39c", "#f0b460", "#df882a", "#c45f24", "#a23620"), oob = scales::squish, show.limits=T, n.breaks=5, na.value="lightgray")
+
+ggsave(file="~/YRBS_predictions/figures/q66_male_map.svg", plot=p, width=8, height=4)
+
+p
+```
+
+```{r}
+q66_preds = fread('~/YRBS_predictions/data/map_preds_q66_female.csv')
+
+q66_preds_map_data = merge(us_map, q66_preds[,.(State, map_value)], by.x='id', by.y='State', all.x=T, allow.cartesian=T)
+
+q66_preds_center_data = merge(as.data.table(centers)[id!="DC"], q66_preds[,.(State, obs_prev)], by.x='id', by.y='State', all.x=T)
+q66_preds_center_data[, real_or_pred := ifelse(obs_prev==1, "plain", "bold.italic")]
+q66_preds_center_data[is.na(obs_prev), real_or_pred := "plain"]
+
+q66_preds_center_data[,map_label:=id]
+q66_preds_center_data[obs_prev==0,map_label:=paste0("bold(underline(",id,"))")]
+
+p = ggplot() +
+  geom_map(data=us_map[id!="DC"], map=us_map, aes(x=long, y=lat, map_id=id), color="white", size=0.5) +
+  geom_map(data=q66_preds_map_data[id!="DC"], map=us_map, aes(fill=map_value, map_id=id)) +
+  geom_text(data=q66_preds_center_data, aes(label=map_label, x=x, y=y), size=4, parse = TRUE) + coord_map() + theme_minimal() +
+  labs(x=NULL, y=NULL, title=NULL) + # "Estimated Prevalences of Same-Sex Contact among Female Respondents") + 
+  theme(plot.title=element_text(face="bold", hjust=0, size=14)) + 
+  theme(panel.border=element_blank()) + 
+  theme(panel.grid=element_blank()) + 
+  theme(axis.ticks=element_blank()) +
+  theme(strip.background=element_blank()) + 
+  theme(axis.text=element_blank()) +
+  labs(fill="") + 
+  scale_color_manual(na.value="white", values = c("red", "green")) +
+  scale_fill_stepsn(colours = c("#f7e39c", "#f0b460", "#df882a", "#c45f24", "#a23620"), oob = scales::squish, show.limits=T, n.breaks=5, na.value="lightgray")
+
+ggsave(file="~/YRBS_predictions/figures/q66_female_map.svg", plot=p, width=8, height=4)
+
+p
+```
